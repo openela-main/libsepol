@@ -1,0 +1,63 @@
+From 8d7ed6eb2c396d64b1a8f6d516cb9f6f86ba2ece Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Wed, 4 Mar 2020 16:28:11 -0500
+Subject: [PATCH] libsepol/cil: Check if name is a macro parameter first
+
+Type transition file names are stored in a symbol table. Before the
+name is added, the symbol table is searched to see if the name had
+already been inserted. If it has, then the already existing datum is
+returned. If it has not, then the name is added if either the
+typetransition rule does not occur in a macro or the name is not one
+of the macro parameters.
+
+Checking for a previous insertion before checking if the name is a
+macro parameter can cause a macro parameter to be treated as the
+actual name if a previous type transition file name is the same as
+the parameter.
+
+Now check the name to see if it a macro paramter before checking for
+its existence in the symbol table.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+Acked-by: Ondrej Mosnacek <omosnace@redhat.com>
+---
+ libsepol/cil/src/cil_resolve_ast.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/libsepol/cil/src/cil_resolve_ast.c b/libsepol/cil/src/cil_resolve_ast.c
+index 979fa17d..ae334620 100644
+--- a/libsepol/cil/src/cil_resolve_ast.c
++++ b/libsepol/cil/src/cil_resolve_ast.c
+@@ -76,14 +76,6 @@ static struct cil_name * __cil_insert_name(struct cil_db *db, hashtab_key_t key,
+ 	enum cil_sym_index sym_index;
+ 	struct cil_symtab_datum *datum = NULL;
+ 
+-	cil_flavor_to_symtab_index(CIL_NAME, &sym_index);
+-	symtab = &((struct cil_root *)db->ast->root->data)->symtab[sym_index];
+-
+-	cil_symtab_get_datum(symtab, key, &datum);
+-	if (datum != NULL) {
+-		return (struct cil_name *)datum;
+-	}
+-
+ 	if (parent->flavor == CIL_CALL) {
+ 		struct cil_call *call = parent->data;
+ 		macro = call->macro;	
+@@ -99,6 +91,14 @@ static struct cil_name * __cil_insert_name(struct cil_db *db, hashtab_key_t key,
+ 		}
+ 	}
+ 
++	cil_flavor_to_symtab_index(CIL_NAME, &sym_index);
++	symtab = &((struct cil_root *)db->ast->root->data)->symtab[sym_index];
++
++	cil_symtab_get_datum(symtab, key, &datum);
++	if (datum != NULL) {
++		return (struct cil_name *)datum;
++	}
++
+ 	cil_name_init(&name);
+ 	cil_symtab_insert(symtab, key, (struct cil_symtab_datum *)name, ast_node);
+ 	cil_list_append(db->names, CIL_NAME, name);
+-- 
+2.30.2
+

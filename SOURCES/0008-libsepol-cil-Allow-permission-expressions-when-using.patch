@@ -1,0 +1,75 @@
+From d6863cc6e4f472444a7944c9ea95333e587efd73 Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Thu, 8 Apr 2021 13:32:14 -0400
+Subject: [PATCH] libsepol/cil: Allow permission expressions when using map
+ classes
+
+The following policy will cause a segfault:
+  (class CLASS (PERM))
+  (class C (P1 P2 P3))
+  (classorder (CLASS C))
+  (sid SID)
+  (sidorder (SID))
+  (user USER)
+  (role ROLE)
+  (type TYPE)
+  (category CAT)
+  (categoryorder (CAT))
+  (sensitivity SENS)
+  (sensitivityorder (SENS))
+  (sensitivitycategory SENS (CAT))
+  (allow TYPE self (CLASS (PERM)))
+  (roletype ROLE TYPE)
+  (userrole USER ROLE)
+  (userlevel USER (SENS))
+  (userrange USER ((SENS)(SENS (CAT))))
+  (sidcontext SID (USER ROLE TYPE ((SENS)(SENS))))
+
+  (classmap CM (PM1 PM2 PM3))
+  (classmapping CM PM1 (C (P1)))
+  (classmapping CM PM2 (C (P2)))
+  (classmapping CM PM3 (C (P3)))
+  (allow TYPE self (CM (and (all) (not PM2))))
+
+The problem is that, while permission expressions are allowed for
+normal classes, map classes are expected to only have permission
+lists and no check is done to verify that only a permission list
+is being used.
+
+When the above policy is parsed, the "and" and "all" are seen as
+expression operators, but when the map permissions are converted to
+normal class and permissions, the permission expression is assumed
+to be a list of datums and since the operators are not datums a
+segfault is the result.
+
+There is no reason to limit map classes to only using a list of
+permissions and, in fact, it would be better to be able to use them
+in the same way normal classes are used.
+
+Allow permissions expressions to be used for map classes by first
+evaluating the permission expression and then converting the
+resulting list to normal classes and permissions.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_post.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/libsepol/cil/src/cil_post.c b/libsepol/cil/src/cil_post.c
+index bdeaa7c6..a820d5ba 100644
+--- a/libsepol/cil/src/cil_post.c
++++ b/libsepol/cil/src/cil_post.c
+@@ -2138,6 +2138,10 @@ static int __evaluate_classperms_list(struct cil_list *classperms, struct cil_db
+ 				}
+ 			} else { /* MAP */
+ 				struct cil_list_item *i = NULL;
++				rc = __evaluate_classperms(cp, db);
++				if (rc != SEPOL_OK) {
++					goto exit;
++				}
+ 				cil_list_for_each(i, cp->perms) {
+ 					struct cil_perm *cmp = i->data;
+ 					rc = __evaluate_classperms_list(cmp->classperms, db);
+-- 
+2.30.2
+

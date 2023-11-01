@@ -1,0 +1,47 @@
+From 628f0f60995c2ed6d2de72bda34e6a62668be74b Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Mon, 16 Nov 2020 17:06:59 -0500
+Subject: [PATCH] libsepol/cil: Remove unused field from struct
+ cil_args_resolve
+
+When resolving names, the struct cil_args_resolve is passed to the
+various resolve functions. The field last_resolved_name is not used.
+
+Remove the last_resolved_name field from struct cil_args_resolve.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_resolve_ast.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/libsepol/cil/src/cil_resolve_ast.c b/libsepol/cil/src/cil_resolve_ast.c
+index ea08087d..ed876260 100644
+--- a/libsepol/cil/src/cil_resolve_ast.c
++++ b/libsepol/cil/src/cil_resolve_ast.c
+@@ -51,7 +51,6 @@ struct cil_args_resolve {
+ 	struct cil_db *db;
+ 	enum cil_pass pass;
+ 	uint32_t *changed;
+-	char *last_resolved_name;
+ 	struct cil_tree_node *optstack;
+ 	struct cil_tree_node *boolif;
+ 	struct cil_tree_node *macro;
+@@ -3907,7 +3906,6 @@ int cil_resolve_ast(struct cil_db *db, struct cil_tree_node *current)
+ 	extra_args.db = db;
+ 	extra_args.pass = pass;
+ 	extra_args.changed = &changed;
+-	extra_args.last_resolved_name = NULL;
+ 	extra_args.optstack = NULL;
+ 	extra_args.boolif= NULL;
+ 	extra_args.macro = NULL;
+@@ -4236,7 +4234,5 @@ exit:
+ 		*datum = NULL;
+ 	}
+ 
+-	args->last_resolved_name = name;
+-
+ 	return rc;
+ }
+-- 
+2.30.2
+
