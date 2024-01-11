@@ -1,0 +1,98 @@
+From 3e82b1e527fab1fb1dbcad8c70bdb59810a98783 Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Tue, 30 Mar 2021 13:39:14 -0400
+Subject: [PATCH] libsepol/cil: Create new first child helper function for
+ building AST
+
+In order to find statements not allowed in tunableifs, in-statements,
+macros, and booleanifs, there are tree node pointers that point to
+each of these kinds of statements when its block is being parsed.
+If the pointer is non-NULL, then the rule being parsed is in the block
+of that kind of statement.
+
+The tree node pointers were being updated at the wrong point which
+prevented an invalid statement from being found if it was the first
+statement in the block of a tunableif, in-statement, macro, or
+booleanif.
+
+Create a first child helper function for walking the parse tree and
+in that function set the appropriate tree node pointer if the
+current AST node is a tunableif, in-statement, macro, or booleanif.
+This also makes the code symmetrical with the last child helper
+where the tree node pointers are set to NULL.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_build_ast.c | 42 +++++++++++++++++++-------------
+ 1 file changed, 25 insertions(+), 17 deletions(-)
+
+diff --git a/libsepol/cil/src/cil_build_ast.c b/libsepol/cil/src/cil_build_ast.c
+index b7245dbc..ceb55324 100644
+--- a/libsepol/cil/src/cil_build_ast.c
++++ b/libsepol/cil/src/cil_build_ast.c
+@@ -6435,22 +6435,6 @@ int __cil_build_ast_node_helper(struct cil_tree_node *parse_current, uint32_t *f
+ 
+ 	if (rc == SEPOL_OK) {
+ 		if (ast_current->cl_head == NULL) {
+-			if (ast_current->flavor == CIL_TUNABLEIF) {
+-				args->tunif = ast_current;
+-			}
+-
+-			if (ast_current->flavor == CIL_IN) {
+-				args->in = ast_current;
+-			}
+-
+-			if (ast_current->flavor == CIL_MACRO) {
+-				args->macro = ast_current;
+-			}
+-
+-			if (ast_current->flavor == CIL_BOOLEANIF) {
+-				args->boolif = ast_current;
+-			}
+-
+ 			ast_current->cl_head = ast_node;
+ 		} else {
+ 			ast_current->cl_tail->next = ast_node;
+@@ -6466,6 +6450,30 @@ exit:
+ 	return rc;
+ }
+ 
++int __cil_build_ast_first_child_helper(__attribute__((unused)) struct cil_tree_node *parse_current, void *extra_args)
++{
++	struct cil_args_build *args = extra_args;
++	struct cil_tree_node *ast = args->ast;
++
++	if (ast->flavor == CIL_TUNABLEIF) {
++		args->tunif = ast;
++	}
++
++	if (ast->flavor == CIL_IN) {
++		args->in = ast;
++	}
++
++	if (ast->flavor == CIL_MACRO) {
++		args->macro = ast;
++	}
++
++	if (ast->flavor == CIL_BOOLEANIF) {
++		args->boolif = ast;
++	}
++
++	return SEPOL_OK;
++}
++
+ int __cil_build_ast_last_child_helper(struct cil_tree_node *parse_current, void *extra_args)
+ {
+ 	struct cil_args_build *args = extra_args;
+@@ -6519,7 +6527,7 @@ int cil_build_ast(struct cil_db *db, struct cil_tree_node *parse_tree, struct ci
+ 	extra_args.macro = NULL;
+ 	extra_args.boolif = NULL;
+ 
+-	rc = cil_tree_walk(parse_tree, __cil_build_ast_node_helper, NULL, __cil_build_ast_last_child_helper, &extra_args);
++	rc = cil_tree_walk(parse_tree, __cil_build_ast_node_helper, __cil_build_ast_first_child_helper, __cil_build_ast_last_child_helper, &extra_args);
+ 	if (rc != SEPOL_OK) {
+ 		goto exit;
+ 	}
+-- 
+2.30.2
+

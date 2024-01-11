@@ -1,0 +1,86 @@
+From dadf1e9ad66318fdd814cf06af2b83741467a3d8 Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Tue, 30 Mar 2021 13:39:17 -0400
+Subject: [PATCH] libsepol/cil: Sync checks for invalid rules in booleanifs
+
+When building the AST, typemember rules in a booleanif block will
+be incorrectly called invalid. They are allowed in the kernel
+policy and should be allowed in CIL.
+
+When resolving the AST, if a neverallow rule is copied into a
+booleanif block, it will not be considered an invalid rule, even
+though this is not allowed in the kernel policy.
+
+Update the booleanif checks to allow typemember rules and to not
+allow neverallow rules in booleanifs. Also use the same form of
+conditional for the checks when building and resolving the AST.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_build_ast.c   |  3 ++-
+ libsepol/cil/src/cil_resolve_ast.c | 23 +++++++++++++++--------
+ 2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/libsepol/cil/src/cil_build_ast.c b/libsepol/cil/src/cil_build_ast.c
+index ceb55324..3a91be03 100644
+--- a/libsepol/cil/src/cil_build_ast.c
++++ b/libsepol/cil/src/cil_build_ast.c
+@@ -6136,7 +6136,8 @@ int __cil_build_ast_node_helper(struct cil_tree_node *parse_current, uint32_t *f
+ 			parse_current->data != CIL_KEY_DONTAUDIT &&
+ 			parse_current->data != CIL_KEY_AUDITALLOW &&
+ 			parse_current->data != CIL_KEY_TYPETRANSITION &&
+-			parse_current->data != CIL_KEY_TYPECHANGE) {
++			parse_current->data != CIL_KEY_TYPECHANGE &&
++			parse_current->data != CIL_KEY_TYPEMEMBER) {
+ 			rc = SEPOL_ERR;
+ 			cil_tree_log(parse_current, CIL_ERR, "Found %s", (char*)parse_current->data);
+ 			if (((struct cil_booleanif*)boolif->data)->preserved_tunable) {
+diff --git a/libsepol/cil/src/cil_resolve_ast.c b/libsepol/cil/src/cil_resolve_ast.c
+index c520c44a..06b6ab48 100644
+--- a/libsepol/cil/src/cil_resolve_ast.c
++++ b/libsepol/cil/src/cil_resolve_ast.c
+@@ -3689,7 +3689,7 @@ exit:
+ 
+ int __cil_resolve_ast_node_helper(struct cil_tree_node *node, uint32_t *finished, void *extra_args)
+ {
+-	int rc = SEPOL_ERR;
++	int rc = SEPOL_OK;
+ 	struct cil_args_resolve *args = extra_args;
+ 	enum cil_pass pass = args->pass;
+ 	struct cil_tree_node *block = args->block;
+@@ -3732,18 +3732,25 @@ int __cil_resolve_ast_node_helper(struct cil_tree_node *node, uint32_t *finished
+ 	}
+ 
+ 	if (boolif != NULL) {
+-		if (!(node->flavor == CIL_TUNABLEIF ||
+-		      node->flavor == CIL_CALL ||
+-		      node->flavor == CIL_CONDBLOCK ||
+-		      node->flavor == CIL_AVRULE ||
+-		      node->flavor == CIL_TYPE_RULE ||
+-		      node->flavor == CIL_NAMETYPETRANSITION)) {
++		if (node->flavor != CIL_TUNABLEIF &&
++			node->flavor != CIL_CALL &&
++			node->flavor != CIL_CONDBLOCK &&
++			node->flavor != CIL_AVRULE &&
++			node->flavor != CIL_TYPE_RULE &&
++			node->flavor != CIL_NAMETYPETRANSITION) {
++			rc = SEPOL_ERR;
++		} else if (node->flavor == CIL_AVRULE) {
++			struct cil_avrule *rule = node->data;
++			if (rule->rule_kind == CIL_AVRULE_NEVERALLOW) {
++				rc = SEPOL_ERR;
++			}
++		}
++		if (rc == SEPOL_ERR) {
+ 			if (((struct cil_booleanif*)boolif->data)->preserved_tunable) {
+ 				cil_tree_log(node, CIL_ERR, "%s statement is not allowed in booleanifs (tunableif treated as a booleanif)", cil_node_to_string(node));
+ 			} else {
+ 				cil_tree_log(node, CIL_ERR, "%s statement is not allowed in booleanifs", cil_node_to_string(node));
+ 			}
+-			rc = SEPOL_ERR;
+ 			goto exit;
+ 		}
+ 	}
+-- 
+2.30.2
+

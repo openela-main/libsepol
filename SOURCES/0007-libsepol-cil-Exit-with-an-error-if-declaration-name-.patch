@@ -1,0 +1,194 @@
+From 5edd2126ad3dc30f75f0ec9f73cd609bbe432c29 Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Thu, 8 Apr 2021 13:32:12 -0400
+Subject: [PATCH] libsepol/cil: Exit with an error if declaration name is a
+ reserved word
+
+When CIL parses sets or conditional expressions, any identifier that
+matches an operator name will always be taken as an operator. If a
+declaration has the same name as an operator, then there is the
+possibility of causing either confusion or a syntax error if it is
+used in an expression. The potential for problems is much greater
+than any possible advantage in allowing a declaration to share the
+name of a reserved word.
+
+Create a new function, __cil_is_reserved_name() that is called when
+an identifier is declared and its name is being validated. In this
+function, check if the declaration has the same name as a reserved
+word for an expression operator that can be used with the identifer's
+flavor and exit with an error if it does.
+
+Also, move the check for types, type aliases, and type attributes
+matching the reserved word "self" to this new function.
+
+Finally, change the name of the function __cil_verify_name() to
+cil_verify_name(), since this function is neither static nor a
+helper function.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_build_ast.c | 28 ++---------------
+ libsepol/cil/src/cil_verify.c    | 52 +++++++++++++++++++++++++++++++-
+ libsepol/cil/src/cil_verify.h    |  2 +-
+ 3 files changed, 54 insertions(+), 28 deletions(-)
+
+diff --git a/libsepol/cil/src/cil_build_ast.c b/libsepol/cil/src/cil_build_ast.c
+index b90b0f60..fe7b7777 100644
+--- a/libsepol/cil/src/cil_build_ast.c
++++ b/libsepol/cil/src/cil_build_ast.c
+@@ -110,7 +110,7 @@ int cil_gen_node(struct cil_db *db, struct cil_tree_node *ast_node, struct cil_s
+ 	symtab_t *symtab = NULL;
+ 	struct cil_symtab_datum *prev;
+ 
+-	rc = __cil_verify_name((const char*)key);
++	rc = cil_verify_name((const char*)key, nflavor);
+ 	if (rc != SEPOL_OK) {
+ 		goto exit;
+ 	}
+@@ -1919,12 +1919,6 @@ int cil_gen_roleattribute(struct cil_db *db, struct cil_tree_node *parse_current
+ 		goto exit;
+ 	}
+ 
+-	if (parse_current->next->data == CIL_KEY_SELF) {
+-		cil_log(CIL_ERR, "The keyword '%s' is reserved\n", CIL_KEY_SELF);
+-		rc = SEPOL_ERR;
+-		goto exit;
+-	}
+-
+ 	cil_roleattribute_init(&attr);
+ 
+ 	key = parse_current->next->data;
+@@ -2303,12 +2297,6 @@ int cil_gen_type(struct cil_db *db, struct cil_tree_node *parse_current, struct
+ 		goto exit;
+ 	}
+ 
+-	if (parse_current->next->data == CIL_KEY_SELF) {
+-		cil_log(CIL_ERR, "The keyword '%s' is reserved\n", CIL_KEY_SELF);
+-		rc = SEPOL_ERR;
+-		goto exit;
+-	}
+-
+ 	cil_type_init(&type);
+ 
+ 	key = parse_current->next->data;
+@@ -2357,12 +2345,6 @@ int cil_gen_typeattribute(struct cil_db *db, struct cil_tree_node *parse_current
+ 		goto exit;
+ 	}
+ 
+-	if (parse_current->next->data == CIL_KEY_SELF) {
+-		cil_log(CIL_ERR, "The keyword '%s' is reserved\n", CIL_KEY_SELF);
+-		rc = SEPOL_ERR;
+-		goto exit;
+-	}
+-
+ 	cil_typeattribute_init(&attr);
+ 
+ 	key = parse_current->next->data;
+@@ -3064,12 +3046,6 @@ int cil_gen_alias(struct cil_db *db, struct cil_tree_node *parse_current, struct
+ 		goto exit;
+ 	}
+ 
+-	if (flavor == CIL_TYPEALIAS && parse_current->next->data == CIL_KEY_SELF) {
+-		cil_log(CIL_ERR, "The keyword '%s' is reserved\n", CIL_KEY_SELF);
+-		rc = SEPOL_ERR;
+-		goto exit;
+-	}
+-
+ 	cil_alias_init(&alias);
+ 
+ 	key = parse_current->next->data;
+@@ -5294,7 +5270,7 @@ int cil_gen_macro(struct cil_db *db, struct cil_tree_node *parse_current, struct
+ 
+ 		param->str =  current_item->cl_head->next->data;
+ 
+-		rc = __cil_verify_name(param->str);
++		rc = cil_verify_name(param->str, param->flavor);
+ 		if (rc != SEPOL_OK) {
+ 			cil_destroy_param(param);
+ 			goto exit;
+diff --git a/libsepol/cil/src/cil_verify.c b/libsepol/cil/src/cil_verify.c
+index 3972b1e9..ea95c2cb 100644
+--- a/libsepol/cil/src/cil_verify.c
++++ b/libsepol/cil/src/cil_verify.c
+@@ -47,7 +47,51 @@
+ 
+ #include "cil_verify.h"
+ 
+-int __cil_verify_name(const char *name)
++static int __cil_is_reserved_name(const char *name, enum cil_flavor flavor)
++{
++	switch (flavor) {
++	case CIL_BOOL:
++	case CIL_TUNABLE:
++		if ((name == CIL_KEY_EQ) || (name == CIL_KEY_NEQ))
++			return CIL_TRUE;
++		break;
++	case CIL_PERM:
++	case CIL_MAP_PERM:
++	case CIL_USER:
++	case CIL_USERATTRIBUTE:
++	case CIL_ROLE:
++	case CIL_ROLEATTRIBUTE:
++		if (name == CIL_KEY_ALL)
++			return CIL_TRUE;
++		break;
++	case CIL_TYPE:
++	case CIL_TYPEATTRIBUTE:
++	case CIL_TYPEALIAS:
++		if ((name == CIL_KEY_ALL) || (name == CIL_KEY_SELF))
++			return CIL_TRUE;
++		break;
++	case CIL_CAT:
++	case CIL_CATSET:
++	case CIL_CATALIAS:
++	case CIL_PERMISSIONX:
++		if ((name == CIL_KEY_ALL) || (name == CIL_KEY_RANGE))
++			return CIL_TRUE;
++		break;
++	default:
++		/* All of these are not used in expressions */
++		return CIL_FALSE;
++		break;
++	}
++
++	/* Everything not under the default case is also checked for these */
++	if ((name == CIL_KEY_AND) || (name == CIL_KEY_OR) || (name == CIL_KEY_NOT) || (name == CIL_KEY_XOR)) {
++		return CIL_TRUE;
++	}
++
++	return CIL_FALSE;
++}
++
++int cil_verify_name(const char *name, enum cil_flavor flavor)
+ {
+ 	int rc = SEPOL_ERR;
+ 	int len;
+@@ -77,6 +121,12 @@ int __cil_verify_name(const char *name)
+ 			goto exit;
+ 		}
+ 	}
++
++	if (__cil_is_reserved_name(name, flavor)) {
++		cil_log(CIL_ERR, "Name %s is a reserved word\n", name);
++		goto exit;
++	}
++
+ 	return SEPOL_OK;
+ 
+ exit:
+diff --git a/libsepol/cil/src/cil_verify.h b/libsepol/cil/src/cil_verify.h
+index bda1565f..e4b98919 100644
+--- a/libsepol/cil/src/cil_verify.h
++++ b/libsepol/cil/src/cil_verify.h
+@@ -56,7 +56,7 @@ struct cil_args_verify {
+ 	int *pass;
+ };
+ 
+-int __cil_verify_name(const char *name);
++int cil_verify_name(const char *name, enum cil_flavor flavor);
+ int __cil_verify_syntax(struct cil_tree_node *parse_current, enum cil_syntax s[], int len);
+ int cil_verify_expr_syntax(struct cil_tree_node *current, enum cil_flavor op, enum cil_flavor expr_flavor);
+ int cil_verify_constraint_leaf_expr_syntax(enum cil_flavor l_flavor, enum cil_flavor r_flavor, enum cil_flavor op, enum cil_flavor expr_flavor);
+-- 
+2.30.2
+

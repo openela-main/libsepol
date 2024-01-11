@@ -1,0 +1,42 @@
+From e42e31d865be8dbb5ea1b99ffab434fcfec14df2 Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Thu, 8 Apr 2021 13:32:11 -0400
+Subject: [PATCH] libsepol/cil: More strict verification of constraint leaf
+ expressions
+
+In constraint expressions u1, u3, r1, r3, t1, and t3 are never
+allowed on the right side of an expression, but there were no checks
+to verify that they were not used on the right side. The result was
+that the expression "(eq t1 t1)" would be silently turned into
+"(eq t1 t2)" when the binary policy was created.
+
+Verify that u1, u3, r1, r3, t1, and t3 are not used on the right
+side of a constraint expression.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_verify.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/libsepol/cil/src/cil_verify.c b/libsepol/cil/src/cil_verify.c
+index 1036d73c..3972b1e9 100644
+--- a/libsepol/cil/src/cil_verify.c
++++ b/libsepol/cil/src/cil_verify.c
+@@ -227,7 +227,13 @@ int cil_verify_constraint_leaf_expr_syntax(enum cil_flavor l_flavor, enum cil_fl
+ 			}
+ 		}
+ 	} else {
+-		if (r_flavor == CIL_CONS_U2) {
++		if (r_flavor == CIL_CONS_U1 || r_flavor == CIL_CONS_R1 || r_flavor == CIL_CONS_T1) {
++			cil_log(CIL_ERR, "u1, r1, and t1 are not allowed on the right side\n");
++			goto exit;
++		} else if (r_flavor == CIL_CONS_U3 || r_flavor == CIL_CONS_R3 || r_flavor == CIL_CONS_T3) {
++			cil_log(CIL_ERR, "u3, r3, and t3 are not allowed on the right side\n");
++			goto exit;
++		} else if (r_flavor == CIL_CONS_U2) {
+ 			if (op != CIL_EQ && op != CIL_NEQ) {
+ 				cil_log(CIL_ERR, "u2 on the right side must be used with eq or neq as the operator\n");
+ 				goto exit;
+-- 
+2.30.2
+

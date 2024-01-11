@@ -1,0 +1,42 @@
+From 7cb30b316eda0b2aa8adeaba28a8afe15fc58c28 Mon Sep 17 00:00:00 2001
+From: Nicolas Iooss <nicolas.iooss@m4x.org>
+Date: Sun, 14 Mar 2021 19:25:58 +0100
+Subject: [PATCH] libsepol/cil: fix NULL pointer dereference in
+ __cil_insert_name
+
+OSS-Fuzz found a Null-dereference in __cil_insert_name when trying to
+compile the following policy:
+
+    (macro MACRO ()
+        (classmap CLASS (PERM))
+        (type TYPE)
+        (typetransition TYPE TYPE CLASS "name" TYPE)
+    )
+    (call MACRO)
+
+When using a macro with no argument, macro->params is NULL and
+cil_list_for_each(item, macro->params) dereferenced a NULL pointer.
+Fix this by checking that macro->params is not NULL before using it.
+
+Fixes: https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=28565
+Signed-off-by: Nicolas Iooss <nicolas.iooss@m4x.org>
+---
+ libsepol/cil/src/cil_resolve_ast.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libsepol/cil/src/cil_resolve_ast.c b/libsepol/cil/src/cil_resolve_ast.c
+index ae334620..91e08633 100644
+--- a/libsepol/cil/src/cil_resolve_ast.c
++++ b/libsepol/cil/src/cil_resolve_ast.c
+@@ -82,7 +82,7 @@ static struct cil_name * __cil_insert_name(struct cil_db *db, hashtab_key_t key,
+ 	} else if (parent->flavor == CIL_MACRO) {
+ 		macro = parent->data;
+ 	}
+-	if (macro != NULL) {
++	if (macro != NULL && macro->params != NULL) {
+ 		struct cil_list_item *item;
+ 		cil_list_for_each(item, macro->params) {
+ 			if (((struct cil_param*)item->data)->str == key) {
+-- 
+2.30.2
+

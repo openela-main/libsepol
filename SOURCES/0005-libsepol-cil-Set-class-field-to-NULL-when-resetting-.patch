@@ -1,0 +1,32 @@
+From 6beea9f422cb452c01a24619247b559b67a4aeec Mon Sep 17 00:00:00 2001
+From: James Carter <jwcart2@gmail.com>
+Date: Thu, 8 Apr 2021 13:32:08 -0400
+Subject: [PATCH] libsepol/cil: Set class field to NULL when resetting struct
+ cil_classperms
+
+The class field of a struct cil_classperms points to the class looked
+up in the symbol table, so that field should be set to NULL when
+the cil_classperms is reset.
+
+Set the class field to NULL when resetting the struct cil_classperms.
+
+Signed-off-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_reset_ast.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libsepol/cil/src/cil_reset_ast.c b/libsepol/cil/src/cil_reset_ast.c
+index 7bf0391b..e86ee3b8 100644
+--- a/libsepol/cil/src/cil_reset_ast.c
++++ b/libsepol/cil/src/cil_reset_ast.c
+@@ -43,6 +43,7 @@ static inline void cil_reset_classperms(struct cil_classperms *cp)
+ 		return;
+ 	}
+ 
++	cp->class = NULL;
+ 	cil_list_destroy(&cp->perms, CIL_FALSE);
+ }
+ 
+-- 
+2.30.2
+
