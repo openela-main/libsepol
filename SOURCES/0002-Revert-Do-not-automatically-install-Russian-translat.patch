@@ -1,0 +1,25 @@
+From a87290f734ba136e7b648a9ce9754767cbb5eed3 Mon Sep 17 00:00:00 2001
+From: Petr Lautrbach <lautrbach@redhat.com>
+Date: Mon, 13 Nov 2023 13:37:36 +0100
+Subject: [PATCH] Revert "Do not automatically install Russian translations"
+Content-type: text/plain
+
+This reverts commit 14f35fde50cd080650ac3b0136234464a3ea6fbe.
+---
+ libsepol/man/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libsepol/man/Makefile b/libsepol/man/Makefile
+index 0b410c198a34..f54e478d05ad 100644
+--- a/libsepol/man/Makefile
++++ b/libsepol/man/Makefile
+@@ -1,5 +1,5 @@
+ # Installation directories.
+-LINGUAS ?=
++LINGUAS ?= ru
+ PREFIX ?= /usr
+ MANDIR ?=  $(PREFIX)/share/man
+ MAN3SUBDIR ?= man3
+-- 
+2.41.0
+

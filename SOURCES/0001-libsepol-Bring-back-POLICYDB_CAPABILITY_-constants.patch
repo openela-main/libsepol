@@ -1,4 +1,4 @@
-From 923849fa1cc36580086be542036c4935d7cbfe1c Mon Sep 17 00:00:00 2001
+From c2fc2fd53245db6899adcf2ad121cf25f200644b Mon Sep 17 00:00:00 2001
 From: Petr Lautrbach <plautrba@redhat.com>
 Date: Mon, 23 May 2022 12:25:58 +0200
 Subject: [PATCH] libsepol: Bring back POLICYDB_CAPABILITY_* constants
@@ -14,10 +14,10 @@ Signed-off-by: Petr Lautrbach <plautrba@redhat.com>
  1 file changed, 14 insertions(+)
 
 diff --git a/libsepol/include/sepol/policydb/polcaps.h b/libsepol/include/sepol/policydb/polcaps.h
-index f5e32e60975d..e568733b3a33 100644
+index 14bcc6cb81d7..5bcd9a124c3f 100644
 --- a/libsepol/include/sepol/policydb/polcaps.h
 +++ b/libsepol/include/sepol/policydb/polcaps.h
-@@ -19,6 +19,20 @@ enum {
+@@ -20,6 +20,20 @@ enum {
  };
  #define POLICYDB_CAP_MAX (__POLICYDB_CAP_MAX - 1)
  
@@ -39,5 +39,5 @@ index f5e32e60975d..e568733b3a33 100644
  extern int sepol_polcap_getnum(const char *name);
  
 -- 
-2.39.0
+2.41.0
 

@@ -1,0 +1,60 @@
+From aeb1a559241c498b8dfcd6dd402be4259860b465 Mon Sep 17 00:00:00 2001
+From: Petr Lautrbach <lautrbach@redhat.com>
+Date: Mon, 13 Nov 2023 13:37:56 +0100
+Subject: [PATCH] Revert "libsepol: Remove the Russian translations"
+Content-type: text/plain
+
+This reverts commit c3d13010734899a3afd9ae2d622ecab56cc74a69.
+---
+ libsepol/man/ru/man8/chkcon.8 | 39 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 39 insertions(+)
+ create mode 100644 libsepol/man/ru/man8/chkcon.8
+
+diff --git a/libsepol/man/ru/man8/chkcon.8 b/libsepol/man/ru/man8/chkcon.8
+new file mode 100644
+index 000000000000..2661afb05baa
+--- /dev/null
++++ b/libsepol/man/ru/man8/chkcon.8
+@@ -0,0 +1,39 @@
++.\" Hey, Emacs! This is an -*- nroff -*- source file.
++.\" Copyright (c) 1997 Manoj Srivastava <srivasta@debian.org>
++.\"
++.\" This is free documentation; you can redistribute it and/or
++.\" modify it under the terms of the GNU General Public License as
++.\" published by the Free Software Foundation; either version 2 of
++.\" the License, or (at your option) any later version.
++.\"
++.\" The GNU General Public License's references to "object code"
++.\" and "executables" are to be interpreted as the output of any
++.\" document formatting or typesetting system, including
++.\" intermediate and printed output.
++.\"
++.\" This manual is distributed in the hope that it will be useful,
++.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
++.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++.\" GNU General Public License for more details.
++.\"
++.\" You should have received a copy of the GNU General Public
++.\" License along with this manual; if not, write to the Free
++.\" Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139,
++.\" USA.
++.\"
++.TH CHKCON 8 "12 марта 2005" "SELinux" "Документация по командной строке SELinux"
++.SH ИМЯ
++chkcon \-  определить, является ли контекст безопасности действительным для конкретной двоичной политики
++.SH ОБЗОР
++chkcon policy_file context
++.SH ОПИСАНИЕ
++Эта утилита проверяет контекст безопасности (его строковое представление), заданный аргументом
++.I context,
++относительно данных конфигурации, прочтённых из файла двоичного представления базы данных политик, заданного аргументом
++.I policy_file.
++.SH ФАЙЛЫ
++policy file
++.SH АВТОРЫ
++Эта страница руководства (и только она) была написана Manoj
++Srivastava <srivasta@debian.org>.
++Перевод на русский язык выполнила Герасименко Олеся <gammaray@basealt.ru>.
+-- 
+2.41.0
+
