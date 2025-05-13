@@ -1,7 +1,7 @@
 Summary: SELinux binary policy manipulation library
 Name: libsepol
 Version: 3.6
-Release: 1%{?dist}
+Release: 2%{?dist}
 License: LGPLv2+
 Source0: https://github.com/SELinuxProject/selinux/releases/download/3.6/libsepol-3.6.tar.gz
 URL: https://github.com/SELinuxProject/selinux/wiki
@@ -13,6 +13,7 @@ URL: https://github.com/SELinuxProject/selinux/wiki
 Patch0001: 0001-libsepol-Bring-back-POLICYDB_CAPABILITY_-constants.patch
 Patch0002: 0002-Revert-Do-not-automatically-install-Russian-translat.patch
 Patch0003: 0003-Revert-libsepol-Remove-the-Russian-translations.patch
+Patch0004: 0004-libsepol-sepol_compute_sid-Do-not-destroy-uninitiali.patch
 # Patch list end
 BuildRequires: make
 BuildRequires: gcc
@@ -109,6 +110,9 @@ rm -rf ${RPM_BUILD_ROOT}%{_mandir}/ru/man8
 %{_mandir}/man8/chkcon.8.gz
 
 %changelog
+* Fri Jan 10 2025 Petr Lautrbach <lautrbach@redhat.com> - 3.6-2
+- sepol_compute_sid: Do not destroy uninitialized context (RHEL-28964)
+
 * Wed Dec 13 2023 Petr Lautrbach <lautrbach@redhat.com> - 3.6-1
 - SELinux userspace 3.6 release
 

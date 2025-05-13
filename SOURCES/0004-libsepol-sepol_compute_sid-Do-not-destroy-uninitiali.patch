@@ -1,0 +1,52 @@
+From 9f30f8d7997d49289bc9c09a85934a5b3f83c3a4 Mon Sep 17 00:00:00 2001
+From: Vit Mojzis <vmojzis@redhat.com>
+Date: Fri, 19 Jul 2024 18:17:13 +0200
+Subject: [PATCH] libsepol/sepol_compute_sid: Do not destroy uninitialized
+ context
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+Content-type: text/plain
+
+Avoid context_destroy() on "newcontext" before context_init() is called.
+
+Fixes:
+  libsepol-3.6/src/services.c:1335: var_decl: Declaring variable "newcontext" without initializer.
+  libsepol-3.6/src/services.c:1462: uninit_use_in_call: Using uninitialized value "newcontext.range.level[0].cat.node" when calling "context_destroy".
+  \# 1460|   	rc = sepol_sidtab_context_to_sid(sidtab, &newcontext, out_sid);
+  \# 1461|         out:
+  \# 1462|-> 	context_destroy(&newcontext);
+  \# 1463|   	return rc;
+  \# 1464|   }
+
+Signed-off-by: Vit Mojzis <vmojzis@redhat.com>
+Reviewed-by: Christian Göttsche <cgzones@googlemail.com>
+Acked-by: Stephen Smalley <stephen.smalley.work@gmail.com>
+---
+ libsepol/src/services.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/libsepol/src/services.c b/libsepol/src/services.c
+index 0eeee7ec6ec7..51a40d1594a7 100644
+--- a/libsepol/src/services.c
++++ b/libsepol/src/services.c
+@@ -1342,14 +1342,12 @@ static int sepol_compute_sid(sepol_security_id_t ssid,
+ 	scontext = sepol_sidtab_search(sidtab, ssid);
+ 	if (!scontext) {
+ 		ERR(NULL, "unrecognized SID %d", ssid);
+-		rc = -EINVAL;
+-		goto out;
++		return -EINVAL;
+ 	}
+ 	tcontext = sepol_sidtab_search(sidtab, tsid);
+ 	if (!tcontext) {
+ 		ERR(NULL, "unrecognized SID %d", tsid);
+-		rc = -EINVAL;
+-		goto out;
++		return -EINVAL;
+ 	}
+ 
+ 	if (tclass && tclass <= policydb->p_classes.nprim)
+-- 
+2.47.1
+
