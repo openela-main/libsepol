@@ -1,7 +1,7 @@
 Summary: SELinux binary policy manipulation library
 Name: libsepol
 Version: 3.6
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: LGPLv2+
 Source0: https://github.com/SELinuxProject/selinux/releases/download/3.6/libsepol-3.6.tar.gz
 URL: https://github.com/SELinuxProject/selinux/wiki
@@ -14,6 +14,11 @@ Patch0001: 0001-libsepol-Bring-back-POLICYDB_CAPABILITY_-constants.patch
 Patch0002: 0002-Revert-Do-not-automatically-install-Russian-translat.patch
 Patch0003: 0003-Revert-libsepol-Remove-the-Russian-translations.patch
 Patch0004: 0004-libsepol-sepol_compute_sid-Do-not-destroy-uninitiali.patch
+Patch0005: 0005-libsepol-cil-Check-that-sym_index-is-within-bounds.patch
+Patch0006: 0006-libsepol-cil-Initialize-avtab_datum-on-declaration.patch
+Patch0007: 0007-libsepol-mls-Do-not-destroy-context-on-memory-error.patch
+Patch0008: 0008-libsepol-cil-cil_post-Initialize-tmp-on-declaration.patch
+Patch0009: 0009-libsepol-Initialize-strs-on-declaration.patch
 # Patch list end
 BuildRequires: make
 BuildRequires: gcc
@@ -110,6 +115,9 @@ rm -rf ${RPM_BUILD_ROOT}%{_mandir}/ru/man8
 %{_mandir}/man8/chkcon.8.gz
 
 %changelog
+* Mon Mar 24 2025 Petr Lautrbach <lautrbach@redhat.com> - 3.6-3
+- Fix static analyzer issues (RHEL-28966)
+
 * Fri Jan 10 2025 Petr Lautrbach <lautrbach@redhat.com> - 3.6-2
 - sepol_compute_sid: Do not destroy uninitialized context (RHEL-28964)
 

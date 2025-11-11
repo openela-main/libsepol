@@ -1,0 +1,64 @@
+From 3b9a52e387cf8951135d54c14863724b898082ee Mon Sep 17 00:00:00 2001
+From: Vit Mojzis <vmojzis@redhat.com>
+Date: Wed, 23 Oct 2024 15:43:18 +0200
+Subject: [PATCH] libsepol: Initialize "strs" on declaration
+Content-type: text/plain
+
+The value of "strs" was not always initialized before being used by
+strs_destroy.
+
+Fixes:
+Error: UNINIT (CWE-457):
+libsepol-3.7/src/kernel_to_cil.c:1439:2: var_decl: Declaring variable "strs" without initializer.
+libsepol-3.7/src/kernel_to_cil.c:1487:2: uninit_use_in_call: Using uninitialized value "strs" when calling "strs_destroy".
+ \# 1485|
+ \# 1486|   exit:
+ \# 1487|-> 	strs_destroy(&strs);
+ \# 1488|
+ \# 1489|   	if (rc != 0) {
+
+Error: UNINIT (CWE-457):
+libsepol-3.7/src/kernel_to_conf.c:1422:2: var_decl: Declaring variable "strs" without initializer.
+libsepol-3.7/src/kernel_to_conf.c:1461:2: uninit_use_in_call: Using uninitialized value "strs" when calling "strs_destroy".
+ \# 1459|
+ \# 1460|   exit:
+ \# 1461|-> 	strs_destroy(&strs);
+ \# 1462|
+ \# 1463|   	if (rc != 0) {
+
+Signed-off-by: Vit Mojzis <vmojzis@redhat.com>
+Acked-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/src/kernel_to_cil.c  | 2 +-
+ libsepol/src/kernel_to_conf.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/libsepol/src/kernel_to_cil.c b/libsepol/src/kernel_to_cil.c
+index 119b657bb009..216b534a745d 100644
+--- a/libsepol/src/kernel_to_cil.c
++++ b/libsepol/src/kernel_to_cil.c
+@@ -1424,7 +1424,7 @@ static int map_type_aliases_to_strs(char *key, void *data, void *args)
+ static int write_type_alias_rules_to_cil(FILE *out, struct policydb *pdb)
+ {
+ 	type_datum_t *alias;
+-	struct strs *strs;
++	struct strs *strs = NULL;
+ 	char *name;
+ 	char *type;
+ 	unsigned i, num = 0;
+diff --git a/libsepol/src/kernel_to_conf.c b/libsepol/src/kernel_to_conf.c
+index 83f46e0fd948..6900700aa39a 100644
+--- a/libsepol/src/kernel_to_conf.c
++++ b/libsepol/src/kernel_to_conf.c
+@@ -1407,7 +1407,7 @@ static int map_type_aliases_to_strs(char *key, void *data, void *args)
+ static int write_type_alias_rules_to_conf(FILE *out, struct policydb *pdb)
+ {
+ 	type_datum_t *alias;
+-	struct strs *strs;
++	struct strs *strs = NULL;
+ 	char *name;
+ 	char *type;
+ 	unsigned i, num = 0;
+-- 
+2.49.0
+

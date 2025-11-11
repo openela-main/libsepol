@@ -1,0 +1,75 @@
+From 31652b2297249539c6637939f3154f5cac8c867b Mon Sep 17 00:00:00 2001
+From: Vit Mojzis <vmojzis@redhat.com>
+Date: Wed, 23 Oct 2024 15:43:16 +0200
+Subject: [PATCH] libsepol/mls: Do not destroy context on memory error
+Content-type: text/plain
+
+In case of malloc error, ctx1, or ctx2 may be pointing to uninitialized
+space and context_destroy should not be used on it.
+
+Fixes:
+Error: UNINIT (CWE-457):
+libsepol-3.7/src/mls.c:673:2: alloc_fn: Calling "malloc" which returns uninitialized memory.
+libsepol-3.7/src/mls.c:673:2: assign: Assigning: "ctx1" = "malloc(64UL)", which points to uninitialized data.
+libsepol-3.7/src/mls.c:699:2: uninit_use_in_call: Using uninitialized value "ctx1->range.level[0].cat.node" when calling "context_destroy".
+ \#  697|   	ERR(handle, "could not check if mls context %s contains %s",
+ \#  698|   	    mls1, mls2);
+ \#  699|-> 	context_destroy(ctx1);
+ \#  700|   	context_destroy(ctx2);
+ \#  701|   	free(ctx1);
+
+Error: UNINIT (CWE-457):
+libsepol-3.7/src/mls.c:674:2: alloc_fn: Calling "malloc" which returns uninitialized memory.
+libsepol-3.7/src/mls.c:674:2: assign: Assigning: "ctx2" = "malloc(64UL)", which points to uninitialized data.
+libsepol-3.7/src/mls.c:700:2: uninit_use_in_call: Using uninitialized value "ctx2->range.level[0].cat.node" when calling "context_destroy".
+ \#  698|   	    mls1, mls2);
+ \#  699|   	context_destroy(ctx1);
+ \#  700|-> 	context_destroy(ctx2);
+ \#  701|   	free(ctx1);
+ \#  702|   	free(ctx2);
+
+Signed-off-by: Vit Mojzis <vmojzis@redhat.com>
+Acked-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/src/mls.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/libsepol/src/mls.c b/libsepol/src/mls.c
+index 45db89207704..a37405d190a5 100644
+--- a/libsepol/src/mls.c
++++ b/libsepol/src/mls.c
+@@ -672,8 +672,10 @@ int sepol_mls_contains(sepol_handle_t * handle,
+ 	context_struct_t *ctx1 = NULL, *ctx2 = NULL;
+ 	ctx1 = malloc(sizeof(context_struct_t));
+ 	ctx2 = malloc(sizeof(context_struct_t));
+-	if (ctx1 == NULL || ctx2 == NULL)
++	if (ctx1 == NULL || ctx2 == NULL){
++		ERR(handle, "out of memory");
+ 		goto omem;
++	}
+ 	context_init(ctx1);
+ 	context_init(ctx2);
+ 
+@@ -690,16 +692,14 @@ int sepol_mls_contains(sepol_handle_t * handle,
+ 	free(ctx2);
+ 	return STATUS_SUCCESS;
+ 
+-      omem:
+-	ERR(handle, "out of memory");
+-
+       err:
+-	ERR(handle, "could not check if mls context %s contains %s",
+-	    mls1, mls2);
+ 	context_destroy(ctx1);
+ 	context_destroy(ctx2);
++      omem:
+ 	free(ctx1);
+ 	free(ctx2);
++	ERR(handle, "could not check if mls context %s contains %s",
++	    mls1, mls2);
+ 	return STATUS_ERR;
+ }
+ 
+-- 
+2.49.0
+

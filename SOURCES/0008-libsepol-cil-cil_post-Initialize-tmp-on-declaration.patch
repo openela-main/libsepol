@@ -1,0 +1,41 @@
+From b394cd4a814ea83aaefb87e9fefb93ddd06df07f Mon Sep 17 00:00:00 2001
+From: Vit Mojzis <vmojzis@redhat.com>
+Date: Wed, 23 Oct 2024 15:43:17 +0200
+Subject: [PATCH] libsepol/cil/cil_post: Initialize tmp on declaration
+Content-type: text/plain
+
+tmp.node was not always initialized before being used by
+ebitmap_destroy.
+
+Fixes:
+Error: UNINIT (CWE-457):
+libsepol-3.7/cil/src/cil_post.c:1309:2: var_decl: Declaring variable "tmp" without initializer.
+libsepol-3.7/cil/src/cil_post.c:1382:6: uninit_use_in_call: Using uninitialized value "tmp.node" when calling "ebitmap_destroy".
+ \# 1380|   				if (rc != SEPOL_OK) {
+ \# 1381|   					cil_log(CIL_INFO, "Failed to apply operator to bitmaps\n");
+ \# 1382|-> 					ebitmap_destroy(&tmp);
+ \# 1383|   					goto exit;
+ \# 1384|   				}
+
+Signed-off-by: Vit Mojzis <vmojzis@redhat.com>
+Acked-by: James Carter <jwcart2@gmail.com>
+---
+ libsepol/cil/src/cil_post.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libsepol/cil/src/cil_post.c b/libsepol/cil/src/cil_post.c
+index 7f45299a3355..6497f1524488 100644
+--- a/libsepol/cil/src/cil_post.c
++++ b/libsepol/cil/src/cil_post.c
+@@ -1313,6 +1313,8 @@ static int __cil_expr_to_bitmap(struct cil_list *expr, ebitmap_t *out, int max,
+ 	curr = expr->head;
+ 	flavor = expr->flavor;
+ 
++	ebitmap_init(&tmp);
++
+ 	if (curr->flavor == CIL_OP) {
+ 		enum cil_flavor op = (enum cil_flavor)(uintptr_t)curr->data;
+ 
+-- 
+2.49.0
+
