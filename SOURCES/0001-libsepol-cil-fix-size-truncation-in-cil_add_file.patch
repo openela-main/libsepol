@@ -1,0 +1,44 @@
+From d3cea73bb031ed457d8f02d6c6a308621e0279c6 Mon Sep 17 00:00:00 2001
+From: Vit Mojzis <vmojzis@redhat.com>
+Date: Thu, 6 Aug 2026 22:42:13 +0200
+Subject: [PATCH] libsepol/cil: fix size truncation in cil_add_file()
+
+cil_add_file() receives size as size_t but passes size + 2 to
+cil_parser() which takes uint32_t. The existing overflow guard
+(size > SIZE_MAX - 2) only prevents size_t wraparound but does
+not catch truncation to 32 bits. Use UINT32_MAX - 2 as the limit
+to match the downstream parameter type.
+
+Fixes:
+2. libsepol-3.11/cil/src/cil.c:561:2: cast_overflow: Truncation due to cast operation on "size + 2UL" from 64 to 32 bits.
+3. libsepol-3.11/cil/src/cil.c:561:2: overflow_sink: "size + 2UL", which might have overflowed, is passed to "cil_parser(name, buffer, size + 2UL, &db->parse)".
+4. libsepol-3.11/cil/src/cil_parser.c:247:2: taint_sink_lv_call: Passing tainted expression "size" to taint sink "cil_lexer_setup".
+5. libsepol-3.11/cil/src/cil_lexer.l:71:2: var_assign_parm: Assigning: "size" = "size".
+6. libsepol-3.11/cil/src/cil_lexer.l:72:2: taint_sink_lv_call: Passing tainted expression "size" to taint sink "cil_yy_scan_buffer".
+8. libsepol-3.11/cil/src/cil_lexer.c:1770:2: lower_bounds: Checking lower bounds of unsigned scalar "size" by taking the false branch of "size < 2UL".
+9. libsepol-3.11/cil/src/cil_lexer.c:1770:2: data_index: Using tainted expression "size - 2UL" as an index to pointer "base".
+
+Signed-off-by: Vit Mojzis <vmojzis@redhat.com>
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+Acked-by: Stephen Smalley <stephen.smalley.work@gmail.com>
+---
+ libsepol/cil/src/cil.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libsepol/cil/src/cil.c b/libsepol/cil/src/cil.c
+index 18b98fe2..d9a5a825 100644
+--- a/libsepol/cil/src/cil.c
++++ b/libsepol/cil/src/cil.c
+@@ -549,7 +549,7 @@ int cil_add_file(cil_db_t *db, const char *name, const char *data, size_t size)
+ 
+ 	cil_log(CIL_INFO, "Parsing %s\n", name);
+ 
+-	if (size > SIZE_MAX - 2) {
++	if (size > UINT32_MAX - 2) {
+ 		cil_log(CIL_ERR, "File size is too large\n");
+ 		return SEPOL_ERR;
+ 	}
+-- 
+2.53.0
+
